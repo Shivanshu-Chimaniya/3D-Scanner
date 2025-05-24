@@ -1,0 +1,528 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Scanning System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/socket.io-client@4.5.1/dist/socket.io.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #007bff;
+            --secondary-color: #6c757d;
+            --success-color: #28a745;
+            --danger-color: #dc3545;
+            --warning-color: #ffc107;
+            --info-color: #17a2b8;
+            --light-color: #f8f9fa;
+            --dark-color: #343a40;
+        }
+        
+        body {
+            padding: 20px;
+            background-color: var(--light-color);
+        }
+        
+        .container {
+            max-width: 1200px;
+        }
+        
+        .scanner-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-gap: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            .scanner-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .card {
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .card-header {
+            font-weight: bold;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+        }
+        
+        .log-container {
+            height: 250px;
+            overflow-y: auto;
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 10px;
+            font-family: monospace;
+            margin-bottom: 10px;
+        }
+        
+        .log-message {
+            margin-bottom: 5px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 3px;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+        
+        .connected {
+            background-color: var(--success-color);
+        }
+        
+        .disconnected {
+            background-color: var(--danger-color);
+        }
+        
+        .qr-container {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        
+        .qr-code {
+            max-width: 200px;
+            margin: 0 auto;
+        }
+        
+        .progress {
+            height: 25px;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2 class="mb-4 text-center">3D Scanning System Control Panel</h2>
+
+        <div class="scanner-grid">
+            <!-- Left Column -->
+            <div>
+                <!-- Scan Controls -->
+                <div class="card">
+                    <div class="card-header">Scan Controls</div>
+                    <div class="card-body">
+                        <button id="btnStartScan" class="btn btn-success me-2">Start Full Scan</button>
+                        <button id="btnStopScan" class="btn btn-danger" disabled>Stop Scan</button>
+                    </div>
+                </div>
+                
+                <!-- Connection Status -->
+                <div class="card">
+                    <div class="card-header">Connection Status</div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <span>ESP32: </span>
+                            <span id="esp32Status">
+                                <span class="status-indicator disconnected"></span>
+                                <span>Disconnected</span>
+                            </span>
+                        </div>
+                        <div>
+                            <span>Phones Connected: </span>
+                            <span id="phonesConnected">0</span>
+                            <span class="badge bg-primary ms-2" id="phonesCount">0</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- QR Code for Phone Connection -->
+                <div class="card">
+                    <div class="card-header">Connect Your Phone</div>
+                    <div class="card-body">
+                        <div class="qr-container">
+                            <img src="data:image/png;base64,{{ qr_code }}" alt="QR Code" class="qr-code img-fluid">
+                        </div>
+                        <p class="text-center">Scan to connect your phone or visit:</p>
+                        <p class="text-center"><a href="{{ phone_url }}" target="_blank">{{ phone_url }}</a></p>
+                    </div>
+                </div>
+            </div>
+            <!-- Right Column -->
+            <div>
+                <!-- Manual Controls -->
+                <div class="card">
+                    <div class="card-header">Manual Controls</div>
+                    <div class="card-body">
+                        <button id="btnLaserOn" class="btn btn-warning me-2 mb-2">Laser ON</button>
+                        <button id="btnLaserOff" class="btn btn-warning me-2 mb-2">Laser OFF</button>
+                        <button id="btnStepMotor" class="btn btn-primary mb-2">Step Motor</button>
+                    </div>
+                </div>
+                
+                <!-- Scan Progress -->
+                <div class="card" id="scanProgressCard" style="display: none;">
+                    <div class="card-header">Scan Progress</div>
+                    <div class="card-body">
+                        <div class="progress">
+                            <div id="scanProgressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                        </div>
+                        
+                        <div class="scan-details mt-3">
+                            <p><strong>Mode:</strong> <span id="scanMode">Idle</span></p>
+                            <p><strong>Step:</strong> <span id="currentStep">0</span>/<span id="totalSteps">400</span></p>
+                            <p><strong>Images Captured:</strong> <span id="imagesCaptured">0</span></p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- System Log -->
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        System Log
+                        <button id="btnClearLog" class="btn btn-sm btn-danger">Clear Log</button>
+                    </div>
+                    <div class="card-body">
+                        <div id="logContainer" class="log-container"></div>
+                    </div>
+                </div>
+            </div>
+        </div> 
+
+        <div class="card mt-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>Scan History & Management</span>
+                <button id="btnRefreshScans" class="btn btn-sm btn-primary">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-clockwise" viewBox="0 0 16 16">
+                        <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/>
+                        <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/>
+                    </svg>
+                    Refresh
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Time</th>
+                                <th>Images</th>
+                                <th>Size</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="scansTableBody">
+                            {% for scan in scans %}
+                            <tr>
+                                <td>{{ scan.date }}</td>
+                                <td>{{ scan.time }}</td>
+                                <td>{{ scan.total_images }} ({{ scan.laser_on_images }} on, {{ scan.laser_off_images }} off)</td>
+                                <td>{{ scan.size }}</td>
+                                <td>
+                                    {% if scan.processed %}
+                                    <span class="badge bg-success">Processed</span>
+                                    {% else %}
+                                    <span class="badge bg-warning">Raw</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if not scan.processed %}
+                                    <a href="/process/{{ scan.id }}" class="btn btn-sm btn-primary">Process</a>
+                                    {% else %}
+                                    <a href="/download_processed/{{ scan.id }}" class="btn btn-sm btn-success">Download</a>
+                                    {% endif %}
+                                    <button class="btn btn-sm btn-danger deleteBtn" scan_id='{{ scan.id }}'>Delete</button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                            {% if not scans %}
+                            <tr>
+                                <td colspan="6" class="text-center">No scans found</td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Connect to Socket.IO server
+            const socket = io();
+            
+            // DOM Elements
+            const btnStartScan = document.getElementById('btnStartScan');
+            const btnStopScan = document.getElementById('btnStopScan');
+            const btnLaserOn = document.getElementById('btnLaserOn');
+            const btnLaserOff = document.getElementById('btnLaserOff');
+            const btnStepMotor = document.getElementById('btnStepMotor');
+            const btnClearLog = document.getElementById('btnClearLog');
+            const logContainer = document.getElementById('logContainer');
+            const esp32Status = document.getElementById('esp32Status');
+            const phonesConnected = document.getElementById('phonesConnected');
+            const phonesCount = document.getElementById('phonesCount');
+            const scanProgressCard = document.getElementById('scanProgressCard');
+            const scanProgressBar = document.getElementById('scanProgressBar');
+            const scanMode = document.getElementById('scanMode');
+            const currentStep = document.getElementById('currentStep');
+            const totalSteps = document.getElementById('totalSteps');
+            const imagesCaptured = document.getElementById('imagesCaptured');
+            const btnRefreshScans = document.getElementById('btnRefreshScans');
+            const scansTableBody = document.getElementById('scansTableBody');
+            const deleteButtons = document.querySelectorAll('.deleteBtn');
+            let currentScanId = null;
+            
+            // Helper function to add log message
+            function addLogMessage(message) {
+                const timestamp = new Date().toLocaleTimeString();
+                const logEntry = document.createElement('div');
+                logEntry.className = 'log-message';
+                logEntry.innerHTML = `<span class="text-muted">[${timestamp}]</span> ${message}`;
+                logContainer.appendChild(logEntry);
+                logContainer.scrollTop = logContainer.scrollHeight;
+            }
+            
+            // Check ESP32 status on page load
+            fetch('/check_esp32')
+                .then(response => response.json())
+                .then(data => {
+                    updateESP32Status(data.connected);
+                    addLogMessage(`ESP32 status check: ${data.connected ? 'Connected' : 'Disconnected'}`);
+                })
+                .catch(error => {
+                    console.error('Error checking ESP32 status:', error);
+                    addLogMessage(`Error checking ESP32 status: ${error}`);
+                });
+            
+            // Event Listeners for Buttons
+            btnStartScan.addEventListener('click', function() {
+                fetch('/start-scan', {
+                    method: 'POST',
+                })
+                .then(response => response.json())
+                .then(data => {
+                    addLogMessage(data.message);
+                    if (data.success) {
+                        btnStartScan.disabled = true;
+                        btnStopScan.disabled = false;
+                        scanProgressCard.style.display = 'block';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error starting scan:', error);
+                    addLogMessage(`Error starting scan: ${error}`);
+                });
+            });
+            
+            btnStopScan.addEventListener('click', function() {
+                fetch('/stop-scan', {
+                    method: 'POST',
+                })
+                .then(response => response.json())
+                .then(data => {
+                    addLogMessage(data.message);
+                })
+                .catch(error => {
+                    console.error('Error stopping scan:', error);
+                    addLogMessage(`Error stopping scan: ${error}`);
+                });
+            });
+            
+            btnLaserOn.addEventListener('click', function() {
+                fetch('/laser-on', {
+                    method: 'POST',
+                })
+                .then(response => response.json())
+                .then(data => {
+                    addLogMessage(data.message);
+                })
+                .catch(error => {
+                    console.error('Error turning on laser:', error);
+                    addLogMessage(`Error turning on laser: ${error}`);
+                });
+            });
+            
+            btnLaserOff.addEventListener('click', function() {
+                fetch('/laser-off', {
+                    method: 'POST',
+                })
+                .then(response => response.json())
+                .then(data => {
+                    addLogMessage(data.message);
+                })
+                .catch(error => {
+                    console.error('Error turning off laser:', error);
+                    addLogMessage(`Error turning off laser: ${error}`);
+                });
+            });
+            
+            btnStepMotor.addEventListener('click', function() {
+                fetch('/step-motor', {
+                    method: 'POST',
+                })
+                .then(response => response.json())
+                .then(data => {
+                    addLogMessage(data.message);
+                })
+                .catch(error => {
+                    console.error('Error stepping motor:', error);
+                    addLogMessage(`Error stepping motor: ${error}`);
+                });
+            });
+            
+            btnClearLog.addEventListener('click', function() {
+                socket.emit('clear_log');
+            });
+            
+            // Socket.IO Event Handlers
+            socket.on('connect', () => {
+                addLogMessage('Connected to server');
+            });
+            
+            socket.on('disconnect', () => {
+                addLogMessage('Disconnected from server');
+            });
+            
+            socket.on('log_message', (data) => {
+                addLogMessage(data.message);
+            });
+            
+            socket.on('esp32_status', (data) => {
+                updateESP32Status(data.connected);
+            });
+            
+            socket.on('phones_count', (data) => {
+                phonesConnected.textContent = data.count;
+                phonesCount.textContent = data.count;
+            });
+            
+            socket.on('scan_started', (data) => {
+                totalSteps.textContent = data.total_steps;
+                currentStep.textContent = '0';
+                imagesCaptured.textContent = '0';
+                scanProgressBar.style.width = '0%';
+                scanProgressCard.style.display = 'block';
+                btnStartScan.disabled = true;
+                btnStopScan.disabled = false;
+                addLogMessage(`Scan started. Total steps: ${data.total_steps}`);
+            });
+            
+            socket.on('scan_progress', (data) => {
+                currentStep.textContent = data.step;
+                totalSteps.textContent = data.total;
+                imagesCaptured.textContent = data.images;
+                scanProgressBar.style.width = `${data.progress}%`;
+                scanMode.textContent = data.mode;
+            });
+            
+            socket.on('update_mode', (data) => {
+                scanMode.textContent = data.mode;
+            });
+            
+            socket.on('scan_completed', (data) => {
+                addLogMessage(`Scan completed with ${data.images_captured} images captured`);
+                resetScanUI();
+            });
+            
+            socket.on('scan_stopped', () => {
+                resetScanUI();
+            });
+            
+            socket.on('clear_log_response', () => {
+                logContainer.innerHTML = '';
+                addLogMessage('Log cleared');
+            });
+            
+            // Socket event for updating scans list
+            socket.on('update_scans_list', (data) => {
+                updateScansTable(data.scans);
+            });
+            
+            // Helper Functions
+            function updateESP32Status(connected) {
+                if (connected) {
+                    esp32Status.innerHTML = '<span class="status-indicator connected"></span><span>Connected</span>';
+                } else {
+                    esp32Status.innerHTML = '<span class="status-indicator disconnected"></span><span>Disconnected</span>';
+                }
+            }
+            
+            function resetScanUI() {
+                btnStartScan.disabled = false;
+                btnStopScan.disabled = true;
+                scanMode.textContent = 'Idle';
+                // Keep the progress card visible to show final results
+            }
+            
+            // Event Listeners for Scan Management
+            btnRefreshScans.addEventListener('click', function() {
+                socket.emit('refresh_scans');
+                addLogMessage('Refreshing scans list...');
+            });
+            
+            deleteButtons.forEach(btn => {
+                btn.addEventListener("click", (event) => {
+                    let current_id = event.target.getAttribute("scan_id");
+                    console.log("deleting")
+                    if (current_id) {
+                        fetch(`/delete_scan/${current_id}`, {
+                            method: 'GET',
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            addLogMessage(data.message);
+                            socket.emit('refresh_scans');
+                        })
+                        .catch(error => {
+                            console.error('Error deleting scan:', error);
+                            addLogMessage(`Error deleting scan: ${error}`);
+                        });
+                    } 
+                });
+            })
+
+            // Function to update scans table
+            function updateScansTable(scans) {
+            scansTableBody.innerHTML = '';
+            
+            if (scans.length === 0) {
+                const row = document.createElement('tr');
+                row.innerHTML = '<td colspan="6" class="text-center">No scans found</td>';
+                scansTableBody.appendChild(row);
+                return;
+            }
+            
+            scans.forEach(scan => {
+                const row = document.createElement('tr');
+                
+                const statusBadge = scan.processed 
+                    ? '<span class="badge bg-success">Processed</span>'
+                    : '<span class="badge bg-warning">Raw</span>';
+                
+                const actionButton = scan.processed
+                    ? `<a href="/download_processed/${scan.id}" class="btn btn-sm btn-success">Download</a>`
+                    : `<button class="btn btn-sm btn-primary process-scan-btn" data-scan-id="${scan.id}">Process</button>`;
+                
+                row.innerHTML = `
+                    <td>${scan.date}</td>
+                    <td>${scan.time}</td>
+                    <td>${scan.total_images} (${scan.laser_on_images} on, ${scan.laser_off_images} off)</td>
+                    <td>${scan.size}</td>
+                    <td>${statusBadge}</td>
+                    <td>
+                        ${actionButton}
+                        <button class="btn btn-sm btn-danger delete-scan-btn" data-scan-id="${scan.id}">Delete</button>
+                    </td>
+                `;
+                
+                scansTableBody.appendChild(row);
+            });
+        } 
+        });
+
+    </script>
+</body>
+</html>
