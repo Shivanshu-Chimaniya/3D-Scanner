@@ -49,7 +49,3 @@ NodeMCU8266/
 - For detailed usage, configuration, and troubleshooting, see the respective READMEs:
   - [FlaskApp/README.md](FlaskApp/README.md)
   - [NodeMCU8266/sketch_may16a/README.md](NodeMCU8266/sketch_may16a/README.md)
-
----
-
-**Contributions and issues are welcome!**
