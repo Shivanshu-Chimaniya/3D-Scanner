@@ -55,7 +55,7 @@ The UI will be available at `http://<HOST>:<PORT>/` (by default `http://0.0.0.0:
 ---
 
 ## Important Routes & APIs
-(Short summary — for full device firmware endpoints, see `NodeMCU8266/sketch_may16a/README.md`)
+(Short summary — for full device firmware endpoints, see  [`NodeMCU8266/README.md`](NodeMCU8266/README.md))
 
 - GET `/` — Desktop dashboard (shows scan list, QR code for phone client).
 - GET `/phone` — Phone UI for capturing images.
@@ -73,7 +73,7 @@ The UI will be available at `http://<HOST>:<PORT>/` (by default `http://0.0.0.0:
 ---
 
 ## Typical Scan Workflow
-1. Ensure ESP8266 firmware is flashed and reachable (see `NodeMCU8266` README).
+1. Ensure ESP8266 firmware is flashed and reachable (see  [`NodeMCU8266/README.md`](NodeMCU8266) `` README).
 2. Start the Flask server.
 3. Open the dashboard and scan the QR code with a phone or open `/phone`.
 4. Press "Start scan" — the server will command the ESP to step & toggle laser and will request the phone to capture images (200 laser_on + 200 laser_off by default).
@@ -105,4 +105,4 @@ The UI will be available at `http://<HOST>:<PORT>/` (by default `http://0.0.0.0:
 ---
 
 ## See also
-- NodeMCU firmware: `NodeMCU8266/README.md` (device endpoints and wiring)
+- NodeMCU firmware:  [`NodeMCU8266/README.md`](NodeMCU8266/README.md)  (device endpoints and wiring)
