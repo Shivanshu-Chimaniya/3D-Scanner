@@ -39,6 +39,6 @@ This firmware runs on an ESP8266 (NodeMCU) board and provides HTTP endpoints to 
 
 ## Integration
 
-This firmware is intended to be used with the [FlaskApp](../../../FlaskApp/README.md) for a complete 3D scanning workflow.
+This firmware is intended to be used with the [FlaskApp] for a complete 3D scanning workflow.
 
 ---
