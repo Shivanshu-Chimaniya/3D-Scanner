@@ -105,4 +105,4 @@ The UI will be available at `http://<HOST>:<PORT>/` (by default `http://0.0.0.0:
 ---
 
 ## See also
-- NodeMCU firmware: `NodeMCU8266/sketch_may16a/README.md` (device endpoints and wiring)
+- NodeMCU firmware: `NodeMCU8266/README.md` (device endpoints and wiring)
