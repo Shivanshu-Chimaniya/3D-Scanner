@@ -97,14 +97,12 @@ The UI will be available at `http://<HOST>:<PORT>/` (by default `http://0.0.0.0:
 
 ---
 
-## Contributing
-Contributions are welcome. Please open issues for bugs or feature requests, and PRs for fixes or new features.
+## Results
+<img width="1920" height="1080" alt="Screenshot 2025-12-27 233058" src="https://github.com/user-attachments/assets/e58f8cf1-6723-49de-8498-40ef3ac9a5f1" />
+<img width="1920" height="1080" alt="Screenshot 2025-12-27 233105" src="https://github.com/user-attachments/assets/38f4859a-fd68-4a57-b32c-16aff061ccf1" />
+<img width="1920" height="1080" alt="Screenshot 2025-12-27 233125" src="https://github.com/user-attachments/assets/3035926a-aba8-4291-9737-3292245cc787" />
 
 ---
 
 ## See also
-- NodeMCU firmware: `NodeMCU8266/sketch_may16a/README.md` (device endpoints and wiring) 🔧
-
----
-
-© 2025 3DScanner Project — License: MIT (or add your project's license)
+- NodeMCU firmware: `NodeMCU8266/sketch_may16a/README.md` (device endpoints and wiring)
